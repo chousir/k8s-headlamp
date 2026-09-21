@@ -1,0 +1,12 @@
+---
+- import_tasks: preflight.yml
+  tags: [preflight, always]
+
+- import_tasks: headlamp.yml
+  tags: [headlamp]
+
+- import_tasks: prometheus.yml
+  tags: [prometheus]
+
+- import_tasks: verify.yml
+  tags: [verify]

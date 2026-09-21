@@ -1,0 +1,13 @@
+image:
+  registry: {{ registry_host }}
+  repository: {{ headlamp_image_repository }}
+  tag: {{ headlamp_image_tag }}
+  pullPolicy: IfNotPresent
+service:
+  type: {{ headlamp_service_type }}
+  port: {{ headlamp_service_port }}
+serviceAccount:
+  create: true
+clusterRoleBinding:
+  create: true
+  clusterRoleName: {{ headlamp_admin_clusterrole }}

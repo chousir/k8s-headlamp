@@ -1,0 +1,32 @@
+---
+# ── 執行環境 ──
+headlamp_kubectl_bin: kubectl
+headlamp_helm_bin: helm
+headlamp_kubeconfig: /etc/kubernetes/admin.conf   # node1 root 的 admin kubeconfig,不假設 ~/.kube/config 存在
+headlamp_remote_dir: "{{ ansible_env.HOME }}/.headlamp-deploy"   # values/manifest render 到這裡
+
+# ── Nexus(素材已由你自行推送,這裡只消費,不會幫你 push)──
+nexus_helm_repo_name: nexus
+# nexus_helm_repo_url 定義在 inventory/group_vars/all.yml(跨 role 共用)
+
+# ── Headlamp(版本/曝露方式沿用 headlamp-offline.md 已確認的決策)──
+headlamp_namespace: kube-system
+headlamp_chart_version: "0.43.0"
+headlamp_image_tag: "v0.43.0"          # 必須與已推上 registry.lab 的 tag 一致,你自己要確保這個 tag 已存在
+headlamp_image_repository: "headlamp-k8s/headlamp"
+headlamp_service_type: LoadBalancer
+headlamp_service_port: 80
+headlamp_admin_sa: headlamp-admin
+headlamp_admin_clusterrole: cluster-admin
+headlamp_create_long_term_token: true   # 建立 headlamp-admin-token Secret(headlamp-offline.md 2.6 長期 token)
+headlamp_show_token: false              # true 才會把解碼後的 token 印到 debug 輸出,預設關閉避免外洩
+headlamp_print_temp_token: false        # true 才會另外 `kubectl create token` 印一次性 token
+
+# ── Prometheus(kube-prometheus-stack,版本鎖定對齊叢集已裝的 CRD v0.88.1,不要隨意升版)──
+prometheus_namespace: monitoring
+prometheus_chart_version: "81.6.9"
+prometheus_retention: 24h
+prometheus_resources_requests_cpu: 100m
+prometheus_resources_requests_memory: 1Gi
+prometheus_resources_limits_memory: 2Gi
+prometheus_label_key: headlamp-prometheus   # Headlamp auto-detect 比對用的 Service 標籤

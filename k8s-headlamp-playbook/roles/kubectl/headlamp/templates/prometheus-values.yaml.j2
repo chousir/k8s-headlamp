@@ -1,0 +1,58 @@
+crds:
+  enabled: false
+
+grafana:
+  enabled: false
+alertmanager:
+  enabled: false
+nodeExporter:
+  enabled: false
+kubeStateMetrics:
+  enabled: false
+defaultRules:
+  create: false
+windowsMonitoring:
+  enabled: false
+
+kubeApiServer:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
+kubeEtcd:
+  enabled: false
+coreDns:
+  enabled: false
+
+kubelet:
+  enabled: true
+
+prometheusOperator:
+  admissionWebhooks:
+    enabled: false
+  image:
+    registry: {{ registry_host }}
+    repository: prometheus-operator/prometheus-operator
+  prometheusConfigReloader:
+    image:
+      registry: {{ registry_host }}
+      repository: prometheus-operator/prometheus-config-reloader
+
+prometheus:
+  service:
+    labels:
+      {{ prometheus_label_key }}: "true"
+  prometheusSpec:
+    image:
+      registry: {{ registry_host }}
+      repository: prometheus/prometheus
+    retention: {{ prometheus_retention }}
+    resources:
+      requests:
+        cpu: {{ prometheus_resources_requests_cpu }}
+        memory: {{ prometheus_resources_requests_memory }}
+      limits:
+        memory: {{ prometheus_resources_limits_memory }}

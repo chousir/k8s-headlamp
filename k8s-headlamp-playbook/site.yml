@@ -1,0 +1,6 @@
+---
+- name: Deploy Headlamp + Prometheus (airgap)
+  hosts: k8s_controller
+  become: true
+  roles:
+    - kubectl/headlamp

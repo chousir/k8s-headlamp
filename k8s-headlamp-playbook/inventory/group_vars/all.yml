@@ -1,0 +1,9 @@
+---
+# 連線層級。若改用非 root 帳號,ansible.cfg 已開 become,直接運作。
+ansible_python_interpreter: auto_silent
+
+# 環境事實:對齊《Nexus 部署規劃書 v2》與 kubespray-offline.md,跨 role 共用。
+# 這裡假設 headlamp/kube-prometheus-stack 的 chart 與 image 已由你手動推上 Nexus
+# (headlamp-offline.md Part 1 + 2.1/2.2),本專案不自動化那段。
+nexus_helm_repo_url: "https://nexus.lab/repository/helm-hosted/"
+registry_host: "registry.lab"

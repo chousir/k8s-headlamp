@@ -1,0 +1,52 @@
+---
+- name: Render prometheus-values.yaml
+  ansible.builtin.template:
+    src: prometheus-values.yaml.j2
+    dest: "{{ headlamp_remote_dir }}/prometheus-values.yaml"
+    mode: "0600"
+
+# ── 映像枚舉預檢(對應 headlamp-offline.md 2.4)──
+- name: Render kube-prometheus-stack templates for image audit
+  ansible.builtin.command:
+    argv:
+      - "{{ headlamp_helm_bin }}"
+      - template
+      - prom
+      - "{{ nexus_helm_repo_name }}/kube-prometheus-stack"
+      - --version
+      - "{{ prometheus_chart_version }}"
+      - -n
+      - "{{ prometheus_namespace }}"
+      - -f
+      - "{{ headlamp_remote_dir }}/prometheus-values.yaml"
+  register: prometheus_template
+  changed_when: false
+
+- name: Extract Prometheus image references
+  ansible.builtin.set_fact:
+    prometheus_images: "{{ prometheus_template.stdout | regex_findall('image:\\s*\"?([^\"\\s]+)\"?') }}"
+
+- name: Fail if any Prometheus image does not come from Nexus registry
+  ansible.builtin.assert:
+    that: "item.startswith(registry_host ~ '/')"
+    fail_msg: "Image 未指向 {{ registry_host }},先依 headlamp-offline.md 2.1/2.2 補推: {{ item }}"
+  loop: "{{ prometheus_images }}"
+
+- name: Install/upgrade kube-prometheus-stack
+  ansible.builtin.command:
+    argv:
+      - "{{ headlamp_helm_bin }}"
+      - --kubeconfig={{ headlamp_kubeconfig }}
+      - upgrade
+      - --install
+      - prom
+      - "{{ nexus_helm_repo_name }}/kube-prometheus-stack"
+      - --version
+      - "{{ prometheus_chart_version }}"
+      - --create-namespace
+      - -n
+      - "{{ prometheus_namespace }}"
+      - -f
+      - "{{ headlamp_remote_dir }}/prometheus-values.yaml"
+  # 同 headlamp.yml 的取捨:純 CLI 輸出無法可靠判斷是否真的無變化,一律視為 changed。
+  changed_when: true

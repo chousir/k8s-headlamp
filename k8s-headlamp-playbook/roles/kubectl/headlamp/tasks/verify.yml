@@ -1,0 +1,55 @@
+---
+- name: Wait for Prometheus pod Ready
+  ansible.builtin.command:
+    argv:
+      - "{{ headlamp_kubectl_bin }}"
+      - --kubeconfig={{ headlamp_kubeconfig }}
+      - -n
+      - "{{ prometheus_namespace }}"
+      - wait
+      - --for=condition=Ready
+      - pod
+      - -l
+      - app.kubernetes.io/name=prometheus
+      - --timeout=300s
+  changed_when: false
+
+- name: Confirm Prometheus Service carries the auto-detect label
+  ansible.builtin.command:
+    argv:
+      - "{{ headlamp_kubectl_bin }}"
+      - --kubeconfig={{ headlamp_kubeconfig }}
+      - -n
+      - "{{ prometheus_namespace }}"
+      - get
+      - svc
+      - -l
+      - "{{ prometheus_label_key }}=true"
+      - -o
+      - name
+  register: headlamp_prom_svc
+  changed_when: false
+  failed_when: headlamp_prom_svc.stdout | length == 0
+
+- name: Get Headlamp LoadBalancer external IP
+  ansible.builtin.command:
+    argv:
+      - "{{ headlamp_kubectl_bin }}"
+      - --kubeconfig={{ headlamp_kubeconfig }}
+      - -n
+      - "{{ headlamp_namespace }}"
+      - get
+      - svc
+      - headlamp
+      - -o
+      - jsonpath={.status.loadBalancer.ingress[0].ip}
+  register: headlamp_lb_ip
+  changed_when: false
+
+- name: Print access summary
+  ansible.builtin.debug:
+    msg:
+      - "Headlamp: http://{{ headlamp_lb_ip.stdout }}"
+      - "登入 token:kubectl --kubeconfig={{ headlamp_kubeconfig }} create token {{ headlamp_admin_sa }} -n {{ headlamp_namespace }}"
+      - "手動複驗 cAdvisor 指標(headlamp-offline.md 2.8):kubectl -n {{ prometheus_namespace }} port-forward svc/prom-kube-prometheus-stack-prometheus 9090:9090"
+      - "Headlamp UI 需手動開:Settings → Plugins → Prometheus → Enable metrics + Auto-detect(headlamp-offline.md 2.9,瀏覽器端設定,無法自動化)"
