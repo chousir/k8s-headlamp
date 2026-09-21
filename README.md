@@ -74,6 +74,10 @@ registry_host: "registry.lab"
 | `prometheus_resources_requests_*` / `prometheus_resources_limits_*` | 節點資源比這次規劃(100m/1Gi request、2Gi limit)更緊或更寬裕時調整,避免 Pending 或浪費。 |
 | `headlamp_namespace` / `prometheus_namespace` | 跟其他叢集慣例(namespace 命名規則)衝突時改。 |
 | `headlamp_show_token` / `headlamp_print_temp_token` | 預設都關閉(避免 cluster-admin 憑證印進 ansible log)。要在跑完直接拿到明文 token 才打開,注意這樣 token 會出現在終端機輸出與 ansible log 裡。 |
+| `headlamp_kubectl_bin` / `headlamp_helm_bin`(預設 `kubectl`/`helm`,吃 PATH) | role 用 `command` 呼叫,不走 login shell,PATH 可能跟你互動 SSH 看到的不同。**第一次跑前**先 `ssh root@<node1_ip> 'command -v kubectl helm'` 確認兩個都有回傳路徑,沒有就改這兩個變數成絕對路徑。 |
+| `nexus_helm_repo_name`(預設 `nexus`) | 只有當同一台 ansible 執行機**未來要對接多個不同 Nexus 環境**時才需要改名,避免本地 helm repo 紀錄撞名(換 `nexus_helm_repo_url` 前記得先 `helm repo remove nexus` 或改名)。 |
+| `headlamp_admin_sa`(預設 `headlamp-admin`) | 跟環境既有 ServiceAccount 命名慣例衝突時改。 |
+| `prometheus_label_key`(預設 `headlamp-prometheus`) | **不要改。** Headlamp plugin 的 auto-detect 是寫死比對這個字面標籤(headlamp-offline.md 1.4 有說明偵測順序),改了 Prometheus 照樣裝得起來,但圖表會永遠偵測不到,而且不會有任何錯誤訊息。 |
 
 ---
 
