@@ -1,6 +1,6 @@
 # Headlamp + Prometheus 離線安裝規劃書(airgap)
 
-**前提**:《Kubespray 離線安裝 Kubernetes 規劃書 v3》(`kubespray-offline.md`)已完成——5 節點 Ready,`helm_enabled`/`metrics_server_enabled`/`prometheus_operator_crds_enabled`(CRD v0.88.1)/MetalLB/cert-manager 皆已就緒;《Nexus 部署規劃書 v2》的 `nexus.lab`(8081 via 443)、`registry.lab`(5000 via 443)已就緒,節點皆信任 Lab Root CA、DNS 指向 infra。
+**前提**:《Kubespray 離線安裝 Kubernetes 規劃書 v3》(外部參考文件,K8s v1.35.4)已完成——5 節點 Ready,`helm_enabled`/`metrics_server_enabled`/`prometheus_operator_crds_enabled`(CRD v0.88.1)/MetalLB/cert-manager 皆已就緒;《Nexus 部署規劃書 v2》的 `nexus.lab`(8081 via 443)、`registry.lab`(5000 via 443)已就緒,節點皆信任 Lab Root CA、DNS 指向 infra。
 
 本文件只涵蓋 Headlamp 與其 Prometheus 依賴,**不含 NGF**(NGF 是給其他服務用的 Gateway,與 Headlamp 曝露方式無關)。Headlamp 以 MetalLB LoadBalancer 曝露純 HTTP,不做 TLS。
 
@@ -328,16 +328,16 @@ kill %1
 
 | 症狀 | 原因 | 處理 |
 |---|---|---|
-| 節點拉映像 `x509 unknown authority` | 節點未信任 Lab CA | 依 kubespray-offline.md 2.0 補做後重跑 |
+| 節點拉映像 `x509 unknown authority` | 節點未信任 Lab CA | 節點安裝 Lab Root CA(`update-ca-certificates`)並重啟 containerd 後重跑 |
 | 節點拉映像 404 / manifest unknown | image 未推入 docker-hosted,或 tag 不符 | infra 依 2.1 補推;`curl -s https://nexus.lab/service/rest/v1/search?repository=docker-hosted&name=<name>` 查證 |
-| `helm repo add nexus` 憑證錯誤 | node1 未信任 Lab CA | 依 kubespray-offline.md 2.0 節點步驟 |
+| `helm repo add nexus` 憑證錯誤 | node1 未信任 Lab CA | node1 安裝 Lab Root CA(`update-ca-certificates`)後重跑 |
 | Helm install/upgrade `ImagePullBackOff` | tag 未 pin 或 chart 含未推送的 image | 2.4 枚舉補推;values 明確 pin tag(1.6/1.4) |
 | `helm install kube-prometheus-stack` CRD 衝突 | chart 又裝一次 CRD | values 設 `crds.enabled: false`(CRD 已由 kubespray 提供) |
 | LoadBalancer `EXTERNAL-IP: <pending>` | MetalLB 未就緒或位址池耗盡/衝突 | `kubectl -n metallb-system get pods,ipaddresspool` |
 | Headlamp Pod detail 無圖表 / 顯示無法偵測 Prometheus | 叢集內沒有 Prometheus server(CRD ≠ server) | 依 2.7 安裝 kube-prometheus-stack |
 | Prometheus 裝了但 auto-detect 仍失敗 | Service 缺 `headlamp-prometheus=true` 標籤,或登入 token 權限不足 | `kubectl -n monitoring get svc -l headlamp-prometheus=true` 確認標籤;token 需能列全叢集 svc/pod;必要時關 auto-detect 手動填 `namespace/service:port`(2.9) |
 | 圖表有框但無資料 | kubelet/cAdvisor 未被 scrape | 確認 values 的 `kubelet.enabled: true`;`container_cpu_usage_seconds_total` 查詢須有回傳(2.8) |
-| `kubectl top nodes/pods` 無資料但 Headlamp 列表卻有數字 / 反之 | 兩者資料來源不同:列表數字靠 metrics-server,Pod detail 時序圖靠 Prometheus | 分開排查:metrics-server 見 kubespray-offline.md 2.6;Prometheus 見本文 2.8 |
+| `kubectl top nodes/pods` 無資料但 Headlamp 列表卻有數字 / 反之 | 兩者資料來源不同:列表數字靠 metrics-server,Pod detail 時序圖靠 Prometheus | 分開排查:metrics-server 看 `kubectl -n kube-system get pods -l k8s-app=metrics-server` 與 `kubectl top nodes`;Prometheus 見本文 2.8 |
 
 ## 附錄 B — 升級 / 更新
 
