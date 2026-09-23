@@ -26,6 +26,11 @@
   ansible.builtin.set_fact:
     prometheus_images: "{{ prometheus_template.stdout | regex_findall('image:\\s*\"?([^\"\\s]+)\"?') }}"
 
+- name: Fail if no Prometheus image was found in rendered chart
+  ansible.builtin.assert:
+    that: prometheus_images | length > 0
+    fail_msg: "helm template 輸出中找不到任何 image:,預檢無法判斷,請手動執行 headlamp-offline.md 2.4"
+
 - name: Fail if any Prometheus image does not come from Nexus registry
   ansible.builtin.assert:
     that: "item.startswith(registry_host ~ '/')"

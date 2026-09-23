@@ -1,4 +1,4 @@
 ---
 # 目前無需 handler:headlamp/prometheus 的 helm upgrade 每次都直接套用最新 render 出的 values,
 # 不依賴 notify 觸發(這個 role 刻意只用 command 呼叫 helm/kubectl,不用 kubernetes.core collection,
-# 所以沒有它那種「值變了才觸發」的原生機制,比照 roles/kubectl/eck-map 的既有寫法)。
+# 所以沒有它那種「值變了才觸發」的原生機制)。

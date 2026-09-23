@@ -23,18 +23,19 @@
       - "{{ headlamp_chart_version }}"
       - -n
       - "{{ headlamp_namespace }}"
-      - --set
-      - "image.registry={{ registry_host }}"
-      - --set
-      - "image.repository={{ headlamp_image_repository }}"
-      - --set
-      - "image.tag={{ headlamp_image_tag }}"
+      - -f
+      - "{{ headlamp_remote_dir }}/headlamp-values.yaml"
   register: headlamp_template
   changed_when: false
 
 - name: Extract Headlamp image references
   ansible.builtin.set_fact:
     headlamp_images: "{{ headlamp_template.stdout | regex_findall('image:\\s*\"?([^\"\\s]+)\"?') }}"
+
+- name: Fail if no Headlamp image was found in rendered chart
+  ansible.builtin.assert:
+    that: headlamp_images | length > 0
+    fail_msg: "helm template 輸出中找不到任何 image:,預檢無法判斷,請手動執行 headlamp-offline.md 2.4"
 
 - name: Fail if any Headlamp image does not come from Nexus registry
   ansible.builtin.assert:

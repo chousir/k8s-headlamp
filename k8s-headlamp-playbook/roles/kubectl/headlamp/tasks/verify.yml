@@ -1,4 +1,24 @@
 ---
+# operator 在 helm 回傳後才非同步建 StatefulSet,Pod 還不存在時 kubectl wait 會直接失敗
+- name: Wait for Prometheus pod to be created by operator
+  ansible.builtin.command:
+    argv:
+      - "{{ headlamp_kubectl_bin }}"
+      - --kubeconfig={{ headlamp_kubeconfig }}
+      - -n
+      - "{{ prometheus_namespace }}"
+      - get
+      - pod
+      - -l
+      - app.kubernetes.io/name=prometheus
+      - -o
+      - name
+  register: headlamp_prom_pod
+  until: headlamp_prom_pod.stdout | length > 0
+  retries: 30
+  delay: 5
+  changed_when: false
+
 - name: Wait for Prometheus pod Ready
   ansible.builtin.command:
     argv:
@@ -31,7 +51,7 @@
   changed_when: false
   failed_when: headlamp_prom_svc.stdout | length == 0
 
-- name: Get Headlamp LoadBalancer external IP
+- name: Get Headlamp LoadBalancer external IP (retries exhausted = still <pending>, check MetalLB pods/ipaddresspool)
   ansible.builtin.command:
     argv:
       - "{{ headlamp_kubectl_bin }}"
@@ -44,12 +64,16 @@
       - -o
       - jsonpath={.status.loadBalancer.ingress[0].ip}
   register: headlamp_lb_ip
+  until: headlamp_lb_ip.stdout | length > 0
+  retries: 12
+  delay: 5
   changed_when: false
+  when: headlamp_service_type == 'LoadBalancer'
 
 - name: Print access summary
   ansible.builtin.debug:
     msg:
-      - "Headlamp: http://{{ headlamp_lb_ip.stdout }}"
+      - "Headlamp: {{ ('http://' ~ headlamp_lb_ip.stdout) if headlamp_service_type == 'LoadBalancer' else '(service type ' ~ headlamp_service_type ~ ',請自行查 kubectl -n ' ~ headlamp_namespace ~ ' get svc headlamp)' }}"
       - "登入 token:kubectl --kubeconfig={{ headlamp_kubeconfig }} create token {{ headlamp_admin_sa }} -n {{ headlamp_namespace }}"
       - "手動複驗 cAdvisor 指標(headlamp-offline.md 2.8):kubectl -n {{ prometheus_namespace }} port-forward svc/prom-kube-prometheus-stack-prometheus 9090:9090"
       - "Headlamp UI 需手動開:Settings → Plugins → Prometheus → Enable metrics + Auto-detect(headlamp-offline.md 2.9,瀏覽器端設定,無法自動化)"
