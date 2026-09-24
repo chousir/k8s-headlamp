@@ -44,7 +44,7 @@ prometheusOperator:
 prometheus:
   service:
     labels:
-      {{ prometheus_label_key }}: "true"
+      headlamp-prometheus: "true"   # Headlamp auto-detect 寫死比對此標籤,不可改
   prometheusSpec:
     image:
       registry: {{ registry_host }}

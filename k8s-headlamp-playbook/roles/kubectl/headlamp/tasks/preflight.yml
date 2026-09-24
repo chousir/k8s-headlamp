@@ -3,38 +3,18 @@
 # 也沒裝它的 kubernetes/openshift Python 依賴),全部改用 ansible.builtin.command + argv:
 # 直接呼叫 kubectl/helm 二進位,並自行處理 changed_when 判斷 idempotency。
 
-- name: Ensure remote render directory exists
-  ansible.builtin.file:
-    path: "{{ headlamp_remote_dir }}"
-    state: directory
-    mode: "0700"
-
 - name: Verify kubectl can reach the cluster
   ansible.builtin.command:
-    argv:
-      - "{{ headlamp_kubectl_bin }}"
-      - --kubeconfig={{ headlamp_kubeconfig }}
-      - get
-      - nodes
-  register: headlamp_kubectl_check
+    argv: [kubectl, get, nodes]
   changed_when: false
 
 - name: Add Nexus helm repo
   ansible.builtin.command:
-    argv:
-      - "{{ headlamp_helm_bin }}"
-      - repo
-      - add
-      - "{{ nexus_helm_repo_name }}"
-      - "{{ nexus_helm_repo_url }}"
+    argv: [helm, repo, add, nexus, "{{ nexus_helm_repo_url }}"]
   register: headlamp_helm_repo_add
   changed_when: "'has been added' in headlamp_helm_repo_add.stdout"
 
 - name: Update helm repo cache
   ansible.builtin.command:
-    argv:
-      - "{{ headlamp_helm_bin }}"
-      - repo
-      - update
-      - "{{ nexus_helm_repo_name }}"
+    argv: [helm, repo, update, nexus]
   changed_when: false

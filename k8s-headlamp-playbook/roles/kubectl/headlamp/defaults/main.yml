@@ -1,32 +1,19 @@
 ---
-# ── 執行環境 ──
-headlamp_kubectl_bin: kubectl
-headlamp_helm_bin: helm
-headlamp_kubeconfig: /etc/kubernetes/admin.conf   # node1 root 的 admin kubeconfig,不假設 ~/.kube/config 存在
-headlamp_remote_dir: "{{ ansible_env.HOME }}/.headlamp-deploy"   # values/manifest render 到這裡
+# kubectl/helm 直接吃 root 的預設 kubeconfig(~/.kube/config),單一叢集不需指定。
+# render 出的檔案固定放 /etc/helm(helm values)與 /etc/k8s(k8s manifest),兩個目錄需預先存在。
+# nexus_helm_repo_url / registry_host 定義在 inventory/group_vars/all.yml。
 
-# ── Nexus(素材已由你自行推送,這裡只消費,不會幫你 push)──
-nexus_helm_repo_name: nexus
-# nexus_helm_repo_url 定義在 inventory/group_vars/all.yml(跨 role 共用)
-
-# ── Headlamp(版本/曝露方式沿用 headlamp-offline.md 已確認的決策)──
-headlamp_namespace: kube-system
+# ── 版本(只在升版時改,新版素材須已推上 Nexus)──
 headlamp_chart_version: "0.43.0"
-headlamp_image_tag: "v0.43.0"          # 必須與已推上 registry.lab 的 tag 一致,你自己要確保這個 tag 已存在
-headlamp_image_repository: "headlamp-k8s/headlamp"
-headlamp_service_type: LoadBalancer
-headlamp_service_port: 80
-headlamp_admin_sa: headlamp-admin
-headlamp_admin_clusterrole: cluster-admin
-headlamp_create_long_term_token: true   # 建立 headlamp-admin-token Secret(headlamp-offline.md 2.6 長期 token)
-headlamp_show_token: false              # true 才會把解碼後的 token 印到 debug 輸出,預設關閉避免外洩
-headlamp_print_temp_token: false        # true 才會另外 `kubectl create token` 印一次性 token
+headlamp_image_tag: "v0.43.0"
+prometheus_chart_version: "81.6.9"     # appVersion 必須等於叢集已裝的 prometheus-operator CRD 版本(v0.88.1)
 
-# ── Prometheus(kube-prometheus-stack,版本鎖定對齊叢集已裝的 CRD v0.88.1,不要隨意升版)──
-prometheus_namespace: monitoring
-prometheus_chart_version: "81.6.9"
+# ── 視環境調整 ──
+headlamp_service_type: LoadBalancer    # 沒有 MetalLB 時改 NodePort
 prometheus_retention: 24h
 prometheus_resources_requests_cpu: 100m
 prometheus_resources_requests_memory: 1Gi
 prometheus_resources_limits_memory: 2Gi
-prometheus_label_key: headlamp-prometheus   # Headlamp auto-detect 比對用的 Service 標籤
+
+# true 才把長期 token 明文印到輸出(會進 ansible log),預設關閉
+headlamp_show_token: false

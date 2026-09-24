@@ -3,10 +3,9 @@
 - name: Wait for Prometheus pod to be created by operator
   ansible.builtin.command:
     argv:
-      - "{{ headlamp_kubectl_bin }}"
-      - --kubeconfig={{ headlamp_kubeconfig }}
+      - kubectl
       - -n
-      - "{{ prometheus_namespace }}"
+      - monitoring
       - get
       - pod
       - -l
@@ -22,10 +21,9 @@
 - name: Wait for Prometheus pod Ready
   ansible.builtin.command:
     argv:
-      - "{{ headlamp_kubectl_bin }}"
-      - --kubeconfig={{ headlamp_kubeconfig }}
+      - kubectl
       - -n
-      - "{{ prometheus_namespace }}"
+      - monitoring
       - wait
       - --for=condition=Ready
       - pod
@@ -37,14 +35,13 @@
 - name: Confirm Prometheus Service carries the auto-detect label
   ansible.builtin.command:
     argv:
-      - "{{ headlamp_kubectl_bin }}"
-      - --kubeconfig={{ headlamp_kubeconfig }}
+      - kubectl
       - -n
-      - "{{ prometheus_namespace }}"
+      - monitoring
       - get
       - svc
       - -l
-      - "{{ prometheus_label_key }}=true"
+      - headlamp-prometheus=true
       - -o
       - name
   register: headlamp_prom_svc
@@ -54,10 +51,9 @@
 - name: Get Headlamp LoadBalancer external IP (retries exhausted = still <pending>, check MetalLB pods/ipaddresspool)
   ansible.builtin.command:
     argv:
-      - "{{ headlamp_kubectl_bin }}"
-      - --kubeconfig={{ headlamp_kubeconfig }}
+      - kubectl
       - -n
-      - "{{ headlamp_namespace }}"
+      - kube-system
       - get
       - svc
       - headlamp
@@ -73,7 +69,7 @@
 - name: Print access summary
   ansible.builtin.debug:
     msg:
-      - "Headlamp: {{ ('http://' ~ headlamp_lb_ip.stdout) if headlamp_service_type == 'LoadBalancer' else '(service type ' ~ headlamp_service_type ~ ',請自行查 kubectl -n ' ~ headlamp_namespace ~ ' get svc headlamp)' }}"
-      - "登入 token:kubectl --kubeconfig={{ headlamp_kubeconfig }} create token {{ headlamp_admin_sa }} -n {{ headlamp_namespace }}"
-      - "手動複驗 cAdvisor 指標(headlamp-offline.md 2.8):kubectl -n {{ prometheus_namespace }} port-forward svc/prom-kube-prometheus-stack-prometheus 9090:9090"
+      - "Headlamp: {{ ('http://' ~ headlamp_lb_ip.stdout) if headlamp_service_type == 'LoadBalancer' else '(service type ' ~ headlamp_service_type ~ ',請自行查 kubectl -n kube-system get svc headlamp)' }}"
+      - "登入 token:kubectl create token headlamp-admin -n kube-system(長期 token 見 secret headlamp-admin-token)"
+      - "手動複驗 cAdvisor 指標(headlamp-offline.md 2.8):kubectl -n monitoring port-forward svc/prom-kube-prometheus-stack-prometheus 9090:9090"
       - "Headlamp UI 需手動開:Settings → Plugins → Prometheus → Enable metrics + Auto-detect(headlamp-offline.md 2.9,瀏覽器端設定,無法自動化)"
