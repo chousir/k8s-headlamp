@@ -5,12 +5,6 @@
     dest: /etc/helm/headlamp-values.yaml
     mode: "0600"
 
-- name: Render /etc/k8s/headlamp-rbac.yaml
-  ansible.builtin.template:
-    src: headlamp-rbac.yaml.j2
-    dest: /etc/k8s/headlamp-rbac.yaml
-    mode: "0600"
-
 # ── 映像枚舉預檢(對應 headlamp-offline.md 2.4),避免 tag 沒推對而 ImagePullBackOff ──
 - name: Render Headlamp chart templates for image audit
   ansible.builtin.command:
@@ -62,27 +56,7 @@
   # 可用來做 dry-run diff),因此一律視為 changed——這是刻意的取捨,不是遺漏。
   changed_when: true
 
-- name: Apply Headlamp RBAC (ServiceAccount / ClusterRoleBinding / token Secret)
-  ansible.builtin.command:
-    argv: [kubectl, apply, -f, /etc/k8s/headlamp-rbac.yaml]
-  register: headlamp_rbac_apply
-  changed_when: headlamp_rbac_apply.stdout is search('(created|configured)')
-
 - name: Wait for Headlamp rollout
   ansible.builtin.command:
     argv: [kubectl, -n, kube-system, rollout, status, deploy/headlamp, --timeout=180s]
   changed_when: false
-
-# ── Token(可選,預設關閉印出,避免 cluster-admin 權限的憑證外洩到 ansible log)──
-- name: Fetch Headlamp long-term token secret (opt-in only)
-  ansible.builtin.command:
-    argv: [kubectl, -n, kube-system, get, secret, headlamp-admin-token, -o, "jsonpath={.data.token}"]
-  register: headlamp_token_b64
-  changed_when: false
-  no_log: true
-  when: headlamp_show_token
-
-- name: Show decoded Headlamp token (opt-in only)
-  ansible.builtin.debug:
-    msg: "{{ headlamp_token_b64.stdout | b64decode }}"
-  when: headlamp_show_token

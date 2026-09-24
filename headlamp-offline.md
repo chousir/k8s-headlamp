@@ -259,36 +259,19 @@ helm template prom nexus/kube-prometheus-stack --version 81.6.9 -n monitoring \
 
 ```bash
 helm install headlamp nexus/headlamp --version 0.43.0 -n kube-system -f headlamp-values.yaml
-
-kubectl create serviceaccount headlamp-admin -n kube-system
-kubectl create clusterrolebinding headlamp-admin \
-  --serviceaccount=kube-system:headlamp-admin --clusterrole=cluster-admin
 ```
+
+登入帳號使用環境既有的 ServiceAccount `kube-system/admin`(已綁 cluster-admin),不另建。
 
 ## 2.6 驗證與登入【node1】
 
 ```bash
 kubectl -n kube-system rollout status deploy/headlamp --timeout=3m
 kubectl -n kube-system get svc headlamp     # EXTERNAL-IP 為 MetalLB 位址池 IP(非 <pending>)
-kubectl create token headlamp-admin -n kube-system          # 臨時 token(約 1h)
+kubectl -n kube-system create token admin                  # 臨時 token(約 1h,可加 --duration=24h)
 ```
 
 瀏覽器開 `http://<EXTERNAL-IP>`,貼 token 登入。此時 Pod 列表與 cluster overview 的用量數字已由 **metrics-server** 提供;Pod detail 頁上方的 CPU/Memory/Network/Filesystem **時序圖**另需 Prometheus,見 2.7–2.9。
-
-長期 token:
-
-```bash
-kubectl apply -f - <<'EOF'
-apiVersion: v1
-kind: Secret
-metadata:
-  name: headlamp-admin-token
-  namespace: kube-system
-  annotations: { kubernetes.io/service-account.name: headlamp-admin }
-type: kubernetes.io/service-account-token
-EOF
-kubectl -n kube-system get secret headlamp-admin-token -o jsonpath='{.data.token}' | base64 -d; echo
-```
 
 ## 2.7 安裝 Prometheus【node1】
 
@@ -320,7 +303,7 @@ kill %1
 2. **Auto-detect** 保持開啟(不需填 Prometheus Service Address)。
 3. 回到任一 Pod 的 detail 頁,上方應出現 CPU / Memory / Network / Filesystem 四張圖。
 
-> 設定為每個瀏覽器各自保存,換瀏覽器或換人登入需重設一次。若 auto-detect 仍失敗,先用 `kubectl -n monitoring get svc -l headlamp-prometheus=true` 確認標籤在,再確認登入 token 有列出全叢集 Pod/Service 的權限(auto-detect 會呼叫 `/api/v1/services?labelSelector=...`;`headlamp-admin` 綁 cluster-admin 即滿足)。要手動指定時,關閉 auto-detect 並填 `monitoring/prom-kube-prometheus-stack-prometheus:9090`(格式為 `namespace/service-name:port`)。
+> 設定為每個瀏覽器各自保存,換瀏覽器或換人登入需重設一次。若 auto-detect 仍失敗,先用 `kubectl -n monitoring get svc -l headlamp-prometheus=true` 確認標籤在,再確認登入 token 有列出全叢集 Pod/Service 的權限(auto-detect 會呼叫 `/api/v1/services?labelSelector=...`;`kube-system/admin` 綁 cluster-admin 即滿足)。要手動指定時,關閉 auto-detect 並填 `monitoring/prom-kube-prometheus-stack-prometheus:9090`(格式為 `namespace/service-name:port`)。
 
 ---
 

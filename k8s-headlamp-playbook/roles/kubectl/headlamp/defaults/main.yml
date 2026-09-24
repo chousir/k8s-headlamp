@@ -1,6 +1,7 @@
 ---
 # kubectl/helm 直接吃 root 的預設 kubeconfig(~/.kube/config),單一叢集不需指定。
-# render 出的檔案固定放 /etc/helm(helm values)與 /etc/k8s(k8s manifest),兩個目錄需預先存在。
+# render 出的 helm values 固定放 /etc/helm(需預先存在)。
+# 登入 Headlamp 用環境既有的 ServiceAccount kube-system/admin,本 role 不另建登入帳號。
 # nexus_helm_repo_url / registry_host 定義在 inventory/group_vars/all.yml。
 
 # ── 版本(只在升版時改,新版素材須已推上 Nexus)──
@@ -14,6 +15,3 @@ prometheus_retention: 24h
 prometheus_resources_requests_cpu: 100m
 prometheus_resources_requests_memory: 1Gi
 prometheus_resources_limits_memory: 2Gi
-
-# true 才把長期 token 明文印到輸出(會進 ansible log),預設關閉
-headlamp_show_token: false

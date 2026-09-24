@@ -40,7 +40,6 @@
 |---|---|---|
 | `headlamp_service_type` | `LoadBalancer` | 叢集沒有 MetalLB → 改 `NodePort`(曝露方式自行處理,本 role 不做 Ingress/Gateway) |
 | `prometheus_resources_*` / `prometheus_retention` | 100m/1Gi request、2Gi limit、24h | 節點資源較緊或較寬裕時調整,避免 Pending 或浪費 |
-| `headlamp_show_token` | `false` | 想在跑完直接看到長期 token 明文時設 `true`(token 會進終端機與 ansible log) |
 
 ### 不要改
 
@@ -54,10 +53,9 @@
 |---|---|
 | kubectl / helm | 直接呼叫 `kubectl`、`helm`(PATH),不帶 `--kubeconfig`,吃 root 預設的 `~/.kube/config` |
 | helm values 檔 | `/etc/helm/headlamp-values.yaml`、`/etc/helm/prometheus-values.yaml` |
-| k8s manifest | `/etc/k8s/headlamp-rbac.yaml` |
 | helm repo 名稱 | `nexus` |
 | namespace | Headlamp `kube-system`、Prometheus `monitoring` |
-| Headlamp 登入帳號 | ServiceAccount `headlamp-admin` 綁 `cluster-admin`,長期 token 在 Secret `headlamp-admin-token` |
+| Headlamp 登入帳號 | 環境既有的 ServiceAccount `kube-system/admin`(本 role 不另建帳號) |
 | Headlamp Service port | `80` |
 | Prometheus auto-detect 標籤 | `headlamp-prometheus: "true"`(**不可改**:Headlamp 寫死比對,改了圖表永遠偵測不到且無錯誤訊息) |
 
@@ -69,7 +67,8 @@
 
 - 所有節點 Ready;上方版本表中的 metrics-server、prometheus-operator CRD v0.88.1、MetalLB(含可用的 IPAddressPool)皆已就緒。
 - 目標節點(`ansible_host`)是 control-plane,以 root 登入後**不帶任何參數**即可執行 `kubectl get nodes` 與 `helm list -A`(kubespray 預設會把 admin kubeconfig 放到 `/root/.kube/config`)。
-- 目標節點上 `/etc/k8s/`(k8s manifest)與 `/etc/helm/`(helm values)兩個目錄已建立。playbook 不會建立或改動這兩個目錄的權限,只會在裡面寫入檔案(權限 0600)。
+- 目標節點上 `/etc/helm/` 目錄已建立(helm values 放這裡)。playbook 不會建立或改動目錄權限,只會在裡面寫入檔案(權限 0600)。
+- `kube-system` 已有 ServiceAccount **`admin`** 並綁定 `cluster-admin`(Headlamp 登入用;auto-detect 需要能列出全叢集 Pod/Service)。本環境通用此帳號,playbook 不另建。
 - 所有節點 DNS 可解析 `registry.lab`、`nexus.lab`(`getent hosts registry.lab nexus.lab`),且已信任 Lab Root CA(否則拉映像 `x509 unknown authority`、`helm repo add` 憑證錯誤)。
 - ansible 執行機能以 **root** SSH 免密碼登入目標節點(`ssh-copy-id` 已做)。
 
@@ -103,6 +102,19 @@ ansible-playbook site.yml                    # 全量部署(headlamp + prometheu
 ```
 
 常用 tags:`preflight`(連線與 repo)、`headlamp`、`prometheus`、`verify`(等待就緒 + 印出存取資訊)。
+
+---
+
+## 登入 Headlamp
+
+使用環境既有的 ServiceAccount `kube-system/admin` 取 token,在 Headlamp 登入頁貼上:
+
+```bash
+kubectl -n kube-system create token admin                   # 臨時 token(預設約 1 小時)
+kubectl -n kube-system create token admin --duration=24h    # 需要較長效期時指定
+```
+
+> 註:Headlamp chart 本身也會建 SA `headlamp` 並以 ClusterRoleBinding `headlamp-admin` 綁 cluster-admin,那是 Headlamp Pod 自己用的,不是登入帳號,不需理會。
 
 ---
 
