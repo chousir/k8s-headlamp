@@ -93,6 +93,55 @@ playbook 的 `headlamp`/`prometheus` tag 各有一段「映像枚舉預檢」,�
 
 ---
 
+## 準備素材(有網路的機器)
+
+在**有網路**的機器(需 `helm`、`docker`)把 chart 與 image 抓到 repo 根目錄的 `package/`。此目錄已列入 `.gitignore`,素材不會進版控;搬運時整包 `package/` 帶到 infra,再依 `headlamp-offline.md` 2.1/2.2 推上 Nexus。
+
+```bash
+cd k8s-headlamp                                  # repo 根目錄
+mkdir -p package/charts package/images
+
+HL_VER=0.43.0        # 對應 headlamp_chart_version;image tag 為 v${HL_VER}
+KPS_VER=81.6.9       # 對應 prometheus_chart_version
+
+# 1) charts(直接指定 repo URL,不會動到本機 helm repo 設定)
+helm pull headlamp --repo https://kubernetes-sigs.github.io/headlamp/ \
+  --version ${HL_VER} -d package/charts
+helm pull kube-prometheus-stack --repo https://prometheus-community.github.io/helm-charts \
+  --version ${KPS_VER} -d package/charts
+
+# 2) 版本連動檢查:appVersion 必須等於叢集 CRD 版本 v0.88.1
+helm show chart package/charts/kube-prometheus-stack-${KPS_VER}.tgz | grep appVersion
+
+# 3) images
+docker pull ghcr.io/headlamp-k8s/headlamp:v${HL_VER}
+docker save ghcr.io/headlamp-k8s/headlamp:v${HL_VER} | gzip > package/images/headlamp-image.tar.gz
+
+docker pull quay.io/prometheus-operator/prometheus-operator:v0.88.1
+docker pull quay.io/prometheus-operator/prometheus-config-reloader:v0.88.1
+docker pull quay.io/prometheus/prometheus:v3.9.1
+docker save \
+  quay.io/prometheus-operator/prometheus-operator:v0.88.1 \
+  quay.io/prometheus-operator/prometheus-config-reloader:v0.88.1 \
+  quay.io/prometheus/prometheus:v3.9.1 | gzip > package/images/prometheus-images.tar.gz
+
+# 4) 產生校驗檔(搬運後在目的端用 `cd package && sha256sum -c SHA256SUMS` 驗證)
+(cd package && sha256sum charts/* images/* > SHA256SUMS)
+```
+
+完成後 `package/` 內容:
+
+```
+package/
+├── SHA256SUMS
+├── charts/   headlamp-0.43.0.tgz、kube-prometheus-stack-81.6.9.tgz
+└── images/   headlamp-image.tar.gz、prometheus-images.tar.gz(含 3 顆 image)
+```
+
+> 升版時把上面的版本號連同「版本連動規則」一起改。Prometheus 相關 3 顆 image 的 tag 以 `helm template` 枚舉結果為準(見 `headlamp-offline.md` 1.5)。
+
+---
+
 ## 執行方式
 
 ```bash
@@ -120,7 +169,7 @@ kubectl -n kube-system create token admin --duration=24h    # 需要較長效期
 
 ## 這個 role 不會做的事(仍要手動)
 
-- 抓素材、推 chart/image 到 Nexus(`headlamp-offline.md` Part 1 + 2.1/2.2)。
+- 推 chart/image 到 Nexus(`headlamp-offline.md` 2.1/2.2;抓素材的指令見上方「準備素材」)。
 - Headlamp UI 內開 Prometheus auto-detect(Settings → Plugins → Prometheus,瀏覽器端設定,無 API 可打)。
 - `headlamp-offline.md` 2.8 的 port-forward + PromQL 即時查詢複驗(`verify` tag 結束時會印出對應指令,自己手動跑)。
 
